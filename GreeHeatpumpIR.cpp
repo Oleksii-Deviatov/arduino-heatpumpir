@@ -9,6 +9,7 @@ void convert_params(
   uint8_t & temperature, uint8_t & swingV, uint8_t & swingH)
 {
   // Sensible defaults for the heat pump mode
+
   powerMode = GREE_AIRCON1_POWER_ON;
   operatingMode = GREE_AIRCON1_MODE_HEAT;
   fanSpeed = GREE_AIRCON1_FAN_AUTO;
@@ -53,9 +54,12 @@ void convert_params(
       fanSpeed = GREE_AIRCON1_FAN1;
       break;
     case FAN_2:
-      fanSpeed = GREE_AIRCON1_FAN2;
+      fanSpeed = GREE_AIRCON1_FAN1;
       break;
     case FAN_3:
+      fanSpeed = GREE_AIRCON1_FAN2;
+      break;
+    case FAN_4:
       fanSpeed = GREE_AIRCON1_FAN3;
       break;
   }
@@ -374,7 +378,7 @@ void GreeYAPHeatpumpIR::generateCommand(uint8_t * buffer,
                   powerMode, operatingMode,
                   fanSpeed, temperature,
                   swingV, swingH,
-                  turboMode, iFeelMode,
+                  turboMode, false,
                   true);
 }
 
@@ -391,7 +395,7 @@ void GreeYAPHeatpumpIR::generateCommand(uint8_t * buffer,
       powerMode, operatingMode,
       fanSpeed, temperature,
       swingV, swingH,
-      turboMode, iFeelMode);
+      turboMode, false);
 
   buffer[2] =
     (turboMode ? (1 << 4) : 0) |
@@ -401,22 +405,23 @@ void GreeYAPHeatpumpIR::generateCommand(uint8_t * buffer,
 
   buffer[3] = 0x50 | (valve ? (1 << 0) : 0);  // bits 4..7 always 0101
 
-  buffer[4] = swingV | (swingH << 4);
+  buffer[5] = swingV | (swingH << 4);
+  buffer[7] |= 0x80; // пишемо 1 в біт 7, // щоб вказати на те, що це сигнал не з пульта
 
-  buffer[5] = 0x82 |
-    (iFeelMode ? (1 << 2) : 0) |  // note that this is different than in the other devices
-    (enableWiFi ? (1 << 6) : 0);
+  // buffer[5] = 0x82 |
+  //   (iFeelMode ? (1 << 2) : 0) |  // note that this is different than in the other devices
+  //   (enableWiFi ? (1 << 6) : 0);
 
-  buffer[7] = (sthtMode ? (1 << 2) : 0);
+  // buffer[7] = (sthtMode ? (1 << 2) : 0);
 
-  memset(buffer + 8, 0, 16);
-  memcpy(buffer + 8, buffer, 3);
+  // memset(buffer + 8, 0, 16);
+  // memcpy(buffer + 8, buffer, 3);
 
-  buffer[8 + 3] = 0x70 |
-    (valve ? (1 << 0) : 0);
+  // buffer[8 + 3] = 0x70 |
+  //   (valve ? (1 << 0) : 0);
 
-  buffer[16 + 3] = 0xA0;
-  buffer[16 + 7] = 0xA0;
+  // buffer[16 + 3] = 0xA0;
+  // buffer[16 + 7] = 0xA0;
 }
 
 void GreeHeatpumpIR::calculateChecksum(uint8_t * buffer) {
@@ -440,7 +445,6 @@ void GreeYANHeatpumpIR::calculateChecksum(uint8_t * buffer) {
 
 void GreeHeatpumpIR::sendBuffer(IRSender& IR, const uint8_t * buffer, size_t len) {
   const auto & timings = getTimings();
-
   // 38 kHz PWM frequency
   IR.setFrequency(38);
 
@@ -537,7 +541,7 @@ void GreeYAPHeatpumpIR::sendGree(
   calculateChecksum(buffer);
   calculateChecksum(buffer + 8);
 
-  sendBuffer(IR, buffer, 24);
+  sendBuffer(IR, buffer, 8);
 }
 
 void GreeYAPHeatpumpIR::send(
@@ -567,25 +571,25 @@ void GreeYAPHeatpumpIR::send(
 // Sends current sensed temperatures, YAC remotes/supporting units only
 void GreeiFeelHeatpumpIR::send(IRSender& IR, uint8_t currentTemperature)
 {
-  uint8_t GreeTemplate[] = { 0x00, 0x00 };
+  // uint8_t GreeTemplate[] = { 0x00, 0x00 };
 
-  GreeTemplate[0] = currentTemperature;
-  GreeTemplate[1] = 0xA5;
+  // GreeTemplate[0] = currentTemperature;
+  // GreeTemplate[1] = 0xA5;
 
-  const auto & timings = getTimings();
+  // const auto & timings = getTimings();
 
-  // 38 kHz PWM frequency
-  IR.setFrequency(38);
+  // // 38 kHz PWM frequency
+  // IR.setFrequency(38);
 
-  // Send Header mark
-  IR.mark(timings.ifeel_hdr_mark);
-  IR.space(timings.ifeel_hdr_space);
+  // // Send Header mark
+  // IR.mark(timings.ifeel_hdr_mark);
+  // IR.space(timings.ifeel_hdr_space);
 
-  // send payload
-  IR.sendIRbyte(GreeTemplate[0], timings.ifeel_bit_mark, timings.zero_space, timings.one_space);
-  IR.sendIRbyte(GreeTemplate[1], timings.ifeel_bit_mark, timings.zero_space, timings.one_space);
+  // // send payload
+  // IR.sendIRbyte(GreeTemplate[0], timings.ifeel_bit_mark, timings.zero_space, timings.one_space);
+  // IR.sendIRbyte(GreeTemplate[1], timings.ifeel_bit_mark, timings.zero_space, timings.one_space);
 
-  // End mark
-  IR.mark(timings.ifeel_bit_mark);
-  IR.space(0);
+  // // End mark
+  // IR.mark(timings.ifeel_bit_mark);
+  // IR.space(0);
 }
